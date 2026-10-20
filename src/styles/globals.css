@@ -1,0 +1,541 @@
+/*
+  Referências consultadas em 2026-10-20 (webfetch): linear.app, raycast.com, vercel.com.
+  Três decisões concretas extraídas, e onde elas aparecem neste arquivo:
+
+  1. HIERARQUIA (Linear) — brilho e peso carregam a hierarquia antes do tamanho.
+     O título da sala fica em 15px/500 #fafafa e o metadado em 11px/500 #8a8a8a com
+     tracking .14em. Dentro da sala não existe título gigante; o número grande é o dado.
+     → tokens --color-ink/--color-muted/--color-faint + classe .micro.
+
+  2. DENSIDADE (Raycast) — cada linha de controle tem 44px, rótulos micro-caps
+     monoespaçados e nenhum cartão decorativo: uma superfície nova só existe quando
+     substitui um divisor de 1px. A sidebar é uma lista contínua, não uma pilha de cards.
+     → .micro, altura h-11 nos controles, lista sem cartões.
+
+  3. ELEVAÇÃO (Vercel/Stripe) — borda de 1px + highlight interno de 1px no topo;
+     sombra difusa só quando o elemento realmente descola (hover, carta selecionada),
+     com blur máximo de 10px. Nenhum glow.
+     → .surface-hairline, .vote-card, token --color-line.
+*/
+
+@import "tailwindcss";
+@import "@fontsource/inter/latin-400.css";
+@import "@fontsource/inter/latin-500.css";
+@import "@fontsource/inter/latin-600.css";
+@import "@fontsource/inter/latin-700.css";
+@import "@fontsource/jetbrains-mono/latin-400.css";
+@import "@fontsource/jetbrains-mono/latin-500.css";
+@import "@fontsource/sora/latin-600.css";
+@import "@fontsource/sora/latin-700.css";
+
+@theme {
+  --color-canvas: #0a0a0a;
+  --color-surface: #141414;
+  --color-elevated: #1a1a1a;
+  --color-raised: #222220;
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-line-strong: rgba(255, 255, 255, 0.16);
+  --color-ink: #fafafa;
+  --color-muted: #a3a3a3;
+  --color-faint: #8a8a8a;
+  --color-accent: #d9a05b;
+  --color-accent-dim: rgba(217, 160, 91, 0.12);
+  --color-accent-glow: rgba(217, 160, 91, 0.30);
+  --color-ok: #15803d;
+  --color-ok-text: #63c98d;
+  --color-danger: #be123c;
+  --color-danger-text: #fda4af;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Sora", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --radius-panel: 14px;
+  --radius-control: 10px;
+
+  --ease-smooth: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-out-exp: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+:root {
+  color-scheme: dark;
+
+  --canvas: var(--color-canvas);
+  --surface: var(--color-surface);
+  --elevated: var(--color-elevated);
+  --border: var(--color-line);
+  --text: var(--color-ink);
+  --text-muted: var(--color-muted);
+  --text-faint: var(--color-faint);
+  --accent: var(--color-accent);
+  --ok: var(--color-ok);
+  --danger: var(--color-danger);
+}
+
+@layer base {
+  html {
+    background: var(--canvas);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--canvas);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: rgba(217, 160, 91, 0.26);
+    color: var(--text);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  button,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+}
+
+@layer components {
+  /* Todo número do produto é monoespaçado e tabular. */
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* Rótulo de metadado: pequeno, espaçado, nunca competindo com o dado. */
+  .micro {
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+
+  .surface-hairline {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  /* Cor arbitrária vinda do uid: o tint de 20% mantém contraste em qualquer matiz. */
+  .avatar {
+    background: color-mix(in oklab, var(--avatar-color, #d9a05b) 20%, #141414);
+    color: color-mix(in oklab, var(--avatar-color, #d9a05b) 74%, white);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--avatar-color, #d9a05b) 34%, transparent);
+  }
+
+  .vote-card {
+    transition:
+      transform 180ms var(--ease-smooth),
+      background-color 180ms var(--ease-smooth),
+      border-color 180ms var(--ease-smooth),
+      color 180ms var(--ease-smooth),
+      box-shadow 180ms var(--ease-smooth);
+  }
+
+  .vote-card:not(:disabled):hover {
+    transform: translateY(-3px);
+    border-color: var(--color-line-strong);
+    background: var(--color-raised);
+  }
+
+  .vote-card:not(:disabled):active {
+    transform: scale(0.98);
+  }
+
+  .vote-card[data-selected="true"] {
+    transform: translateY(-6px);
+  }
+
+  .vote-card[data-selected="true"]:hover {
+    transform: translateY(-6px);
+  }
+
+  .spinner {
+    display: inline-block;
+    flex: none;
+    border-radius: 9999px;
+    border: 2px solid color-mix(in oklab, currentColor 22%, transparent);
+    border-top-color: currentColor;
+    animation: pp-spin 700ms linear infinite;
+  }
+
+  .flip-in {
+    animation: pp-flip 520ms var(--ease-smooth) both;
+  }
+
+  .rise-in {
+    /* Só transform: opacidade no meio da animação derruba o contraste medido
+       (e a leitura) do painel de resultado. O deslize já dá a entrada. */
+    animation: pp-rise 260ms var(--ease-smooth) both;
+  }
+
+  .scroll-slim {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-raised) transparent;
+  }
+
+  /* Zero de altura e grudado no fim do corpo rolável: desbota o conteúdo que
+     continua abaixo da borda sem empurrar nada e sem depender de JavaScript
+     para ocupar espaço. O ::before fica acima da linha do elemento. */
+  .result-fade {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    height: 0;
+    pointer-events: none;
+    transition: opacity 180ms var(--ease-smooth);
+  }
+
+  .result-fade::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 22px;
+    background: linear-gradient(
+      to top,
+      var(--color-surface) 0%,
+      color-mix(in oklab, var(--color-surface) 72%, transparent) 48%,
+      transparent
+    );
+  }
+
+  .scroll-slim::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scroll-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scroll-slim::-webkit-scrollbar-thumb {
+    background: var(--color-raised);
+    border-radius: 9999px;
+    border: 2px solid var(--color-surface);
+  }
+
+  /* Áreas nomeadas: uma única árvore de DOM para mobile e desktop,
+     para o aria-live do resultado existir uma vez só. */
+  .room-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "people"
+      "result"
+      "stage";
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  @media (min-width: 768px) {
+    .room-layout {
+      grid-template-areas:
+        "people people"
+        "stage result";
+      grid-template-columns: minmax(0, 1fr) 308px;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .room-layout {
+      grid-template-areas: "people stage result";
+      grid-template-columns: 272px minmax(0, 1fr) 320px;
+      grid-template-rows: minmax(0, 1fr);
+    }
+  }
+}
+
+/* Alturas curtas (360x640, 320x568): o deck é a ação principal e precisa
+   caber sem rolagem. A bandeja reduz só o próprio peso — some o rótulo
+   "Sua carta", as cartas ficam mais baixas e o placar revelado perde apenas
+   os nomes, que continuam na tira de participantes. Fora das camadas para
+   vencer as utilidades do Tailwind. */
+@media (max-height: 700px) and (max-width: 1023px) {
+  .deck-caption {
+    display: none;
+  }
+
+  .vote-deck-grid {
+    gap: 6px;
+  }
+
+  .vote-card {
+    aspect-ratio: 4 / 3;
+  }
+
+  .room-tray {
+    padding-top: 10px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
+  .room-tray-body {
+    gap: 10px;
+  }
+
+  .room-stage-group {
+    gap: 8px;
+  }
+
+  .reveal-board-card {
+    height: 60px;
+    width: 46px;
+    font-size: 16px;
+  }
+
+  .reveal-board-name {
+    display: none;
+  }
+
+  .result-content {
+    padding: 10px 12px;
+  }
+
+  .result-revealed {
+    gap: 10px;
+  }
+
+  .result-average {
+    font-size: 32px;
+  }
+
+  .result-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 14px;
+  }
+
+  .result-facts > div {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  .result-facts dd {
+    margin-top: 0;
+    font-size: 13px;
+  }
+}
+
+/* Abaixo de 600px de altura a fileira de cartas reveladas dá lugar ao
+   resultado: os votos continuam visíveis na tira de participantes. */
+@media (max-height: 600px) and (max-width: 1023px) {
+  .room-stage-board {
+    display: none;
+  }
+}
+
+@keyframes pp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pp-flip {
+  from {
+    transform: rotateY(-82deg);
+    opacity: 0;
+  }
+  to {
+    transform: rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes pp-rise {
+  from {
+    transform: translateY(6px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Shimmer sutil para loading states — só opacity e background-position. */
+@keyframes pp-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Pop pequeno para badges de estado (consenso). */
+@keyframes pp-pop {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Deslize de entrada para novos participantes e histórico. */
+@keyframes pp-slide-in {
+  from {
+    transform: translateX(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Pulso sutil no dot online — só opacity, nunca transform none. */
+@keyframes pp-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(21, 128, 61, 0.28);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(21, 128, 61, 0.06);
+  }
+}
+
+/* Carta saindo do deck (selecionada): desliza para cima e some. */
+@keyframes pp-deal-out {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-18px) scale(0.9);
+    opacity: 0;
+  }
+}
+
+/* Count-up: a largura do número cresce com o valor via width var. */
+@keyframes pp-count {
+  from {
+    --count-ratio: 0;
+  }
+  to {
+    --count-ratio: 1;
+  }
+}
+
+/* Fundo de grade pontilhada sutil — usado na home. */
+@keyframes pp-grid-drift {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 40px 40px;
+  }
+}
+
+/* Entrada do hero: fade + subida. */
+@keyframes pp-hero {
+  from {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Entrada de cada carta do preview deck: fade + subida com atraso. */
+@keyframes pp-deal-in {
+  from {
+    transform: translateY(18px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Classes utilitárias de animação */
+.shimmer {
+  background: linear-gradient(90deg, transparent, var(--color-raised) 50%, transparent);
+  background-size: 200% 100%;
+  animation: pp-shimmer 1.6s ease-in-out infinite;
+}
+
+.pop-in {
+  animation: pp-pop 320ms var(--ease-spring) both;
+}
+
+.slide-in {
+  animation: pp-slide-in 220ms var(--ease-smooth) both;
+}
+
+.pulse-dot {
+  animation: pp-pulse 2.4s ease-in-out infinite;
+}
+
+.deal-out {
+  animation: pp-deal-out 260ms var(--ease-smooth) both;
+}
+
+.count-up {
+  animation: pp-count 700ms var(--ease-out-exp) both;
+  animation-timeline: linear;
+}
+
+.hero-enter {
+  animation: pp-hero 520ms var(--ease-out-exp) both;
+}
+
+.deal-in {
+  animation: pp-deal-in 340ms var(--ease-out-exp) both;
+}
+
+.home-grid {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.055) 1px, transparent 0);
+  background-size: 32px 32px;
+  animation: pp-grid-drift 60s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .vote-card,
+  .vote-card:not(:disabled):hover,
+  .vote-card[data-selected="true"] {
+    transform: none;
+  }
+
+  .pulse-dot,
+  .home-grid {
+    animation: none !important;
+  }
+}

@@ -1,0 +1,7 @@
+# Planning Poker — crawling e indexação
+
+Sitemap dinâmico não se aplica (rotas geradas por código de 6 chars).
+Permitir tudo: o conteúdo é o app em si, não páginas estáticas.
+
+User-agent: *
+Allow: /

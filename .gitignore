@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+.firebase
+.env
+.env.local
+.env.*.local
+!.env.production
+*.local
+test-results
+playwright-report
+*-debug.log
